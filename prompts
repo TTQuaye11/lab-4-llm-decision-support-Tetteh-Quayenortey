@@ -1,0 +1,72 @@
+def SUMMARY_PROMPT_V2(letter):
+  return ask_llm(user_prompt=f"Summarize this loan application: {letter}",
+                 system_prompt="You are an assistant to a microfinance loan officer. Be factual and neutral. Do not invent any details. Keep your responses between 3 and 4 sentences.",
+                 temperature=0)
+def EXTRACT_PROMPT(letter_text):
+
+  example_letter = """Dear Sir,
+My name is Tetteh Quayenortey and I need 5000 GHS for my small tailoring business.
+I will use it to buy new sewing machines. I make about 1000 GHS profit each month.
+I have a guarantor. I can repay in 10 months.
+"""
+
+  example_json = {
+      "applicant_name": "Tetteh Quayenortey",
+      "amount_ghs": 5000,
+      "purpose": "buy new sewing machines",
+      "monthly_profit_ghs": 1000,
+      "has_collateral_or_guarantor": True,
+      "repayment_months": 10
+  }
+
+  system_prompt = (
+      "You are a highly efficient data extraction bot. Your sole task is to extract specific information "
+      "from loan application letters and return it as a JSON object. Adhere strictly to the following schema:\n"
+      "- `applicant_name`: (string) The full name of the applicant.\n"
+      "- `amount_ghs`: (number) The loan amount requested in Ghanaian Cedis.\n"
+      "- `purpose`: (string) A brief description of what the loan is for.\n"
+      "- `monthly_profit_ghs`: (number or null) The stated monthly profit of the applicant's business, if mentioned. Use null if not specified.\n"
+      "- `has_collateral_or_guarantor`: (boolean) True if collateral or a guarantor is mentioned, False otherwise.\n"
+      "- `repayment_months`: (number or null) The proposed repayment period in months, if mentioned. Use null if not specified.\n"
+      "If a field is not stated in the letter, use null. Do not guess or invent details. "
+      "Respond ONLY with the JSON object. Do not include any other text or formatting outside the JSON."
+  )
+
+  user_prompt = (
+      f"Extract the following fields from the loan application letter and return them as a JSON object:\n"
+      f"Letter:\n{example_letter}\n"
+      f"JSON: {json.dumps(example_json)}\n\n"
+      f"Letter:\n{letter_text}\n"
+      f"JSON:"
+  )
+
+def BRIEF_PROMPT(letter_text, extracted_data):
+  system_prompt = (
+      "You are an assistant to a microfinance loan officer. Your task is to provide a decision support brief "
+      "for a loan application. Your brief should be factual, neutral, and based solely on the provided letter "
+      "and extracted data. Do not make any final approval or rejection decisions; instead, suggest concrete "
+      "next steps for the loan officer. Structure your response as follows:\n\n"
+      "**Strengths:**\n- [Bullet point 1]\n- [Bullet point 2]\n...\n"
+      "**Risks/Red Flags:**\n- [Bullet point 1]\n- [Bullet point 2]\n...\n"
+      "**Missing Information:**\n- [Missing piece 1]\n- [Missing piece 2]\n...\n"
+      "**Suggested Next Step:** [e.g., 'Invite for interview', 'Request sales records', 'Flag for senior review']"
+  )
+
+  user_prompt = (
+      f"Please generate a decision support brief for the following loan application letter and extracted data.\n\n"
+      f"**Loan Application Letter:**\n{letter_text}\n\n"
+      f"**Extracted Data (JSON):**\n{json.dumps(extracted_data, indent=2)}\n\n"
+      "Generate the brief following the specified format. Remember, do not make approval or rejection decisions."
+  )
+
+  response = client.chat.completions.create(
+      model=MODEL,
+      messages=[
+          {"role": "system", "content": system_prompt},
+          {"role": "user", "content": user_prompt},
+      ],
+      temperature=0.0,
+      max_tokens=500
+  )
+  return response.choices[0].message.content
+  return system_prompt, user_prompt
